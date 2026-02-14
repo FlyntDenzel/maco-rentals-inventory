@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum ItemStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+  RETIRED
+}
+
+enum RentalStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  MOBILE_MONEY
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ExpenseCategory {
+  MAINTENANCE
+  PROCUREMENT
+  SALARY
+  UTILITIES
+  OTHER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rentals Rental[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items Item[]
+}
+
+model Item {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  serialNumber String?    @unique
+  categoryId   String
+  status       ItemStatus @default(AVAILABLE)
+  dailyRate    Float
+  quantity     Int        @default(1)
+  imageUrl     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  category     Category      @relation(fields: [categoryId], references: [id])
+  rentals      Rental[]
+  maintenances Maintenance[]
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String
+  address   String?
+  idNumber  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rentals Rental[]
+}
+
+model Rental {
+  id            String        @id @default(uuid())
+  customerId    String
+  itemId        String
+  userId        String
+  startDate     DateTime
+  endDate       DateTime
+  returnDate    DateTime?
+  status        RentalStatus  @default(PENDING)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Financial fields (ADMIN ONLY)
+  dailyRate     Float
+  numberOfDays  Int
+  subtotal      Float
+  deposit       Float         @default(0)
+  discount      Float         @default(0)
+  totalAmount   Float
+  amountPaid    Float         @default(0)
+  amountDue     Float
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  customer Customer  @relation(fields: [customerId], references: [id])
+  item     Item      @relation(fields: [itemId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  payments Payment[]
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  rentalId      String
+  amount        Float
+  paymentMethod PaymentMethod
+  paymentDate   DateTime      @default(now())
+  reference     String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  rental Rental @relation(fields: [rentalId], references: [id])
+}
+
+model Expense {
+  id           String          @id @default(uuid())
+  description  String
+  amount       Float
+  category     ExpenseCategory
+  expenseDate  DateTime        @default(now())
+  receipt      String?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Maintenance {
+  id          String            @id @default(uuid())
+  itemId      String
+  description String
+  status      MaintenanceStatus @default(PENDING)
+  startDate   DateTime          @default(now())
+  endDate     DateTime?
+  cost        Float             @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  item Item @relation(fields: [itemId], references: [id])
+}
